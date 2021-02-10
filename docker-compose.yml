@@ -1,0 +1,77 @@
+version: '3'
+services:
+  cache:
+    image: Panda-ManR/blog_cache:latest
+    build:
+      context: nginx-cache
+      dockerfile: Dockerfile
+    container_name: cache
+    depends_on:
+      - origin
+    ports:
+      - 80:80
+      - 443:443
+    environment:
+      PROD: ${PROD}
+      NGINX_HOST: ${NGINX_HOST}
+      API_URL: localhost
+    volumes:
+      - ./data/certbot/conf:/etc/letsencrypt
+      - ./data/certbot/www:/var/www/certbot
+      - ${PWD}/rss.xml:/home/rss.xml
+      - ${PWD}/sitemap.xml:/home/sitemap.xml
+      - ${PWD}/sitemap.xml:/home/newsletter.xml
+  origin:
+    image: Panda-ManR/article_frontend:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: frontend
+    depends_on:
+      - backend
+    expose:
+      - 8008
+    environment:
+      PROD: 1
+      API_URL: localhost
+    volumes:
+      - ${PWD}/rss.xml:/home/rss.xml
+      - ${PWD}/sitemap.xml:/home/sitemap.xml
+      - ${PWD}/sitemap.xml:/home/newsletter.xml
+  backend:
+    image: Panda-ManR/blog_backend:latest
+    container_name: backend
+    healthcheck:
+        test: ["CMD", "curl", "-f", "backend"]
+        interval: 30s
+        timeout: 10s
+        retries: 5
+    depends_on:
+      - blog_db
+    ports:
+      - 8080:8080
+    volumes:
+      - ./data/certbot/conf/live/${API_URL}:/etc/certs
+
+  blog_db:
+    image: Panda-ManR/blog_db:latest
+    container_name: db
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - data:/var/lib/postgresql/data
+    expose:
+      - 5432
+    environment:
+      POSTGRES_USER: "postgres"
+      POSTGRES_PASSWORD: "postgres"
+      DB_NAME: "blog"
+      POSTGRES_DB: blog
+      PGPORT: 5432
+      POPULATE_DB: ${POPULATE_DB}
+
+volumes:
+  data: {}

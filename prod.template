@@ -1,0 +1,63 @@
+server {
+    listen 8008;
+    server_name localhost;
+    server_tokens off;
+
+
+    # Static folder that Nginx must serve
+    location / {
+        try_files $uri $uri/ /index.html;
+        root /home/html;
+        auth_basic off;
+
+        expires           72h;
+        proxy_hide_header 'Cache-Control';
+        add_header        'Cache-Control' "public, max-age=259200";
+    }
+
+    location ~* \.(?:cur|jpe?g|gif|htc|ico|png|otf|ttf|eot|woff|woff2|svg)$ {
+        root /home/html;
+        access_log    off;
+        add_header    Cache-Control public;
+        expires       max;
+
+        tcp_nodelay off;
+    }
+
+    location ~* \.(?:html)$ {
+        root /home/html;
+        access_log    off;
+        add_header    Cache-Control public;
+        expires       2h;
+
+        tcp_nodelay off;
+    }
+
+
+    location ~* \.(?:css|js)$ {
+        root /home/html;
+        access_log    off;
+        add_header    Cache-Control public;
+        expires       30d;
+
+        tcp_nodelay off;
+    }
+
+
+    # In order to avoid favicon errors on some navigators like IE
+    # which would pollute Nginx logs (do use the "=")
+    location = /favicon.ico {
+        access_log off;
+        log_not_found off;
+    }
+
+    location ~ ^/(api|editor) {
+        auth_basic "Administrator’s Area";
+        auth_basic_user_file /etc/nginx/.htpasswd;
+    }
+
+    # robots.txt file generated on the fly
+    location /robots.txt {
+        return 200 "User-agent: *\nDisallow: \n\nUser-agent: *\nDisallow: /api/v1/";
+    }
+}
